@@ -5,9 +5,6 @@ __pycache__/
 *.pyd
 *.egg-info
 
-# Poetry
- poetry.lock
-
 # venv
 .venv/
 
