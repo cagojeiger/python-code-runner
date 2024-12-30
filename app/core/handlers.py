@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.core.exceptions import (SandboxRuntimeError, SandboxSecurityError,
-                                 SandboxSyntaxError)
-from app.models.schemas import ErrorResponse
+from app.core.exceptions import (
+    SandboxRuntimeError,
+    SandboxSecurityError,
+    SandboxSyntaxError,
+)
+from app.schemas.execution import ErrorResponse
 
 
 def register_exception_handlers(app: FastAPI) -> None:

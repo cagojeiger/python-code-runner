@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.models.schemas import CodeRequest, ExecuteResponse
+from app.schemas.execution import CodeRequest, ExecuteResponse
 from app.services.code_execution import execute_user_code
 
 router = APIRouter(tags=["Execution"])
