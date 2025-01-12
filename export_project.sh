@@ -1,46 +1,79 @@
 #!/usr/bin/env bash
+#
+# Shell script to find and display files while pruning (skipping) certain directories
+# and excluding specific file name patterns.
+#
+# Usage:
+#   ./script.sh
+#
+# This script demonstrates:
+#   - How to exclude entire directories from the search using '-prune'.
+#   - How to exclude specific file name patterns (e.g., '*.pyc', 'poetry.lock').
+#   - How to output each file with a header and its content.
 
-# 제외할 패턴
-EXCLUDES=(
-  "*/__pycache__/*"
-  "*/.mypy_cache/*"
-  "*/.pytest_cache/*"
-  "*/.git/*"
+set -euo pipefail
+# set -x  # Uncomment for debug (shows each command executed)
+
+###############################################################################
+# 1) DIRECTORIES TO PRUNE
+#    We skip searching these directories entirely (no recursion).
+###############################################################################
+PRUNE_DIRS=(
+  ".git"
+  "__pycache__"
+  ".mypy_cache"
+  ".pytest_cache"
+)
+
+###############################################################################
+# 2) FILE NAME PATTERNS TO EXCLUDE
+#    These are patterns for individual files, not directories.
+###############################################################################
+EXCLUDE_FILENAME_PATTERNS=(
   "*.pyc"
-  # lock 파일과 해시값 등이 들어있는 파일들 제외
   "poetry.lock"
   "Pipfile.lock"
-  "*requirements*.txt" # 필요없다면 제외 가능, 필요하다면 주석처리
+  "*requirements*.txt"
 )
 
-# 포함할 파일 패턴들
-INCLUDES=(
-  "*.py"                # Python 소스
-  "Dockerfile"          # Docker 빌드 파일
-  "docker-compose.yml"  # Docker Compose 파일
-  "pyproject.toml"      # Poetry 설정
-  "Pipfile"             # Pipenv 설정 파일 (필요 없다면 제외 가능)
-  ".gitignore"          # Git 무시 패턴
-  ".flake8"             # Flake8 설정
-  ".editorconfig"       # 코드 스타일 설정
-  "README*"             # README 파일
-  "LICENSE*"            # 라이선스 파일
-)
-
-# EXCLUDES 배열을 find 인자화
-EXCLUDE_ARGS=()
-for pattern in "${EXCLUDES[@]}"; do
-  EXCLUDE_ARGS+=( -not -path "$pattern" )
+###############################################################################
+# (A) CONSTRUCT THE PRUNE EXPRESSION
+#     - For each directory in PRUNE_DIRS, add a clause like:
+#       -path "./.git" -prune -o
+#     - This means "if path is .git -> prune (skip recursion), else -> proceed"
+###############################################################################
+PRUNE_EXPRESSION=()
+for dir in "${PRUNE_DIRS[@]}"; do
+  PRUNE_EXPRESSION+=( -path "./$dir" -prune -o )
 done
 
-# INCLUDES 배열 처리: ( -false -o -name "*.py" -o -name "Dockerfile" ... )
-NAME_ARGS=( -false )
-for pattern in "${INCLUDES[@]}"; do
-  NAME_ARGS+=( -o -name "$pattern" )
-done
+###############################################################################
+# (B) CONSTRUCT THE EXCLUDE EXPRESSION
+#     - We want to exclude certain file names.
+#     - The logic is: -not ( -name "pattern1" -o -name "pattern2" ... )
+###############################################################################
+EXCLUDE_EXPRESSION=()
+if ((${#EXCLUDE_FILENAME_PATTERNS[@]} > 0)); then
+  EXCLUDE_EXPRESSION+=( -not \( -false )
+  for pattern in "${EXCLUDE_FILENAME_PATTERNS[@]}"; do
+    EXCLUDE_EXPRESSION+=( -o -name "$pattern" )
+  done
+  EXCLUDE_EXPRESSION+=( \) )
+fi
 
-# find 명령 실행
-find . "(" "${NAME_ARGS[@]}" ")" "${EXCLUDE_ARGS[@]}" -type f -print0 |
+###############################################################################
+# (C) RUN THE FIND COMMAND
+#     1) Prune the specified directories.
+#     2) Only consider regular files (-type f).
+#     3) Exclude file name patterns from EXCLUDE_EXPRESSION.
+#     4) Use -print0 for safe handling of filenames with special chars/spaces.
+###############################################################################
+find . \
+  "${PRUNE_EXPRESSION[@]}" \
+  \( -type f \
+     "${EXCLUDE_EXPRESSION[@]}" \
+  \) \
+  -print0 |
 while IFS= read -r -d '' file; do
   echo "===== $file ====="
   cat "$file"

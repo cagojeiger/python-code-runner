@@ -2,7 +2,7 @@
 name = "python-code-runner"
 version = "0.1.0"
 description = "A python environment for running code"
-authors = ["jeiger <cagojeiger89@gmail.com.com>"]
+authors = ["jeiger <cagojeiger89@gmail.com>"]
 readme = "README.md"
 packages = [
   { include = "app" }
