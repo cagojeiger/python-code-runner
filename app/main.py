@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 
+from app.core.config import ENV, SERVICE, VERSION
 from app.core.handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestLoggingMiddleware
 from app.features.code_execution.api import router as code_execution_router
 from app.features.root.api import router as root_router
-
-SERVICE = "code-runner"
-ENV = "prod"
-VERSION = "1.0.0"
 
 # 로깅 설정
 configure_logging(service=SERVICE, env=ENV, version=VERSION)
@@ -17,7 +14,7 @@ configure_logging(service=SERVICE, env=ENV, version=VERSION)
 app = FastAPI(
     title="sandboxed-code-runner",
     description="A sandbox environment for secure code execution.",
-    version="0.1.0",
+    version=VERSION,
 )
 
 # 요청 로깅 미들웨어 등록

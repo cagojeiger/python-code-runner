@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.core.config import ENV, SERVICE, VERSION
 from app.features.root.schemas import ServiceInfo
 
-router = APIRouter(tags=["system"])
+router = APIRouter(tags=["System"])
 
 
 @router.get(
