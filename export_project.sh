@@ -34,6 +34,7 @@ EXCLUDE_FILENAME_PATTERNS=(
   "poetry.lock"
   "Pipfile.lock"
   "*requirements*.txt"
+  "export_project.sh"
 )
 
 ###############################################################################
