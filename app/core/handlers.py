@@ -6,7 +6,7 @@ from app.core.exceptions import (
     SandboxSecurityError,
     SandboxSyntaxError,
 )
-from app.schemas.execution import ErrorResponse
+from app.features.code_execution.schemas import ErrorResponse
 
 
 def register_exception_handlers(app: FastAPI) -> None:
