@@ -1,7 +1,7 @@
 # ---------------------
 # 1단계: 빌드 스테이지
 # ---------------------
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 RUN apt-get update && apt-get install -y curl build-essential && apt-get clean
 
