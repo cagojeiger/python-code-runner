@@ -1,66 +1,90 @@
 # app/features/code_execution/services.py
 import asyncio
-import io
-import os
-import sys
 import tempfile
-from typing import Dict
+from pathlib import Path
+from typing import Tuple
 
 from app.core.exceptions import SandboxRuntimeError
 from app.core.security import check_forbidden_patterns
 
+# 상수 정의
+SANDBOX_PREFIX = "sandbox_"
+CODE_FILENAME = "user_code.py"
+EXECUTION_TIMEOUT = 5.0  # seconds
+
 
 async def execute_user_code(code: str) -> str:
+    """사용자 코드를 안전한 환경에서 실행하고 결과를 반환합니다.
+
+    Args:
+        code: 실행할 파이썬 코드 문자열
+
+    Returns:
+        str: 실행 결과 (표준 출력 + 표준 에러)
+
+    Raises:
+        SandboxRuntimeError: 코드 실행 중 오류 발생시
     """
-    사용자가 전달한 code를 임시 파일에 저장한 뒤,
-    asyncio.create_subprocess_exec로 별도 프로세스에서 비동기로 실행합니다.
-    """
-    # 1) 코드 보안 검사(AST)
     check_forbidden_patterns(code)
 
-    # 2) 샌드박스용 전용 디렉터리 생성 (권한 최소화)
-    sandbox_dir = tempfile.mkdtemp(prefix="sandbox_")
-    #   - mkdtemp()은 디렉터리를 0700 권한으로 생성합니다 (오너만 rwx).
-
-    try:
-        # 3) 디렉터리 내에 임시 파일 생성
-        file_path = os.path.join(sandbox_dir, "user_code.py")
-        with open(file_path, "w") as f:
-            f.write(code)
-
-        # 4) 비동기 서브프로세스 생성
-        process = await asyncio.create_subprocess_exec(
-            "python",
-            file_path,
-            cwd=sandbox_dir,  # 작업 디렉터리를 sandbox_dir로 고정
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        # 5) 결과 수집 (타임아웃 예: 5초)
+    # 임시 디렉터리 생성 및 자동 정리
+    with tempfile.TemporaryDirectory(prefix=SANDBOX_PREFIX) as sandbox_dir:
         try:
-            stdout_data, stderr_data = await asyncio.wait_for(
-                process.communicate(), timeout=5.0
-            )
+            return await _run_code_in_sandbox(code, sandbox_dir)
         except asyncio.TimeoutError:
-            # 타임아웃 시, 프로세스 강제 종료 후 예외
-            process.kill()
-            stdout_data, stderr_data = await process.communicate()
             raise SandboxRuntimeError("Execution timed out.")
+        except Exception as e:
+            raise SandboxRuntimeError(f"Subprocess execution error: {str(e)}")
 
-        # 6) 출력 정리
-        stdout_str = stdout_data.decode()
-        stderr_str = stderr_data.decode() if stderr_data else ""
 
-        return stdout_str + (f"\n{stderr_str}" if stderr_str else "")
+async def _run_code_in_sandbox(code: str, sandbox_dir: str) -> str:
+    """샌드박스 환경에서 코드를 실행합니다.
 
-    except Exception as e:
-        raise SandboxRuntimeError(f"Subprocess execution error: {e}")
+    Args:
+        code: 실행할 파이썬 코드
+        sandbox_dir: 샌드박스 디렉터리 경로
 
-    finally:
-        # 7) 실행 후 디렉터리/파일 삭제
-        if os.path.exists(sandbox_dir):
-            # 안전하게 전체 디렉터리 삭제
-            import shutil
+    Returns:
+        str: 실행 결과
+    """
+    file_path = Path(sandbox_dir) / CODE_FILENAME
 
-            shutil.rmtree(sandbox_dir)
+    # 코드를 파일에 작성
+    file_path.write_text(code)
+
+    # 프로세스 실행 및 결과 수집
+    stdout_str, stderr_str = await _execute_process(file_path, sandbox_dir)
+
+    return stdout_str + (f"\n{stderr_str}" if stderr_str else "")
+
+
+async def _execute_process(file_path: Path, cwd: str) -> Tuple[str, str]:
+    """별도 프로세스에서 파이썬 코드를 실행합니다.
+
+    Args:
+        file_path: 실행할 파이썬 파일 경로
+        cwd: 작업 디렉터리
+
+    Returns:
+        Tuple[str, str]: (표준 출력, 표준 에러) 튜플
+    """
+    process = await asyncio.create_subprocess_exec(
+        "python",
+        str(file_path),
+        cwd=cwd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    stdout_data, stderr_data = await asyncio.wait_for(
+        process.communicate(), 
+        timeout=EXECUTION_TIMEOUT
+    )
+
+    if process.returncode != 0:
+        raise RuntimeError(stderr_data.decode() or "Unknown error from user code")
+
+    return (
+        stdout_data.decode(),
+        stderr_data.decode() if stderr_data else ""
+    )
