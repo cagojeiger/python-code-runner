@@ -11,7 +11,7 @@ router = APIRouter(tags=["Execution"])
     response_model=ExecuteResponse,
     summary="사용자 코드 실행",
     description="사용자가 제출한 코드를 안전한 환경에서 실행하고 결과를 반환합니다.",
-    response_description="코드 실행 결과가 성공적으로 반환됩니다."
+    response_description="코드 실행 결과가 성공적으로 반환됩니다.",
 )
 async def run_code(req: CodeRequest) -> ExecuteResponse:
     """

@@ -77,14 +77,10 @@ async def _execute_process(file_path: Path, cwd: str) -> Tuple[str, str]:
     )
 
     stdout_data, stderr_data = await asyncio.wait_for(
-        process.communicate(), 
-        timeout=EXECUTION_TIMEOUT
+        process.communicate(), timeout=EXECUTION_TIMEOUT
     )
 
     if process.returncode != 0:
         raise RuntimeError(stderr_data.decode() or "Unknown error from user code")
 
-    return (
-        stdout_data.decode(),
-        stderr_data.decode() if stderr_data else ""
-    )
+    return (stdout_data.decode(), stderr_data.decode() if stderr_data else "")

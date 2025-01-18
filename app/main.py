@@ -4,6 +4,7 @@ from app.core.handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestLoggingMiddleware
 from app.features.code_execution.api import router as code_execution_router
+from app.features.root.api import router as root_router
 
 SERVICE = "code-runner"
 ENV = "prod"
@@ -21,6 +22,9 @@ app = FastAPI(
 
 # 요청 로깅 미들웨어 등록
 app.add_middleware(RequestLoggingMiddleware)
+
+# 루트 라우터 등록: prefix 없이 바로 사용 (ex: GET "/")
+app.include_router(root_router)
 
 # Code Execution 기능 라우터 등록
 app.include_router(code_execution_router, prefix="/v1")
