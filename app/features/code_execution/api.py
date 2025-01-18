@@ -10,6 +10,6 @@ router = APIRouter(tags=["Execution"])
 @router.post(
     "/execute", response_model=ExecuteResponse, summary="Run user code securely"
 )
-def run_code(req: CodeRequest) -> ExecuteResponse:
-    result = execute_user_code(req.code)
+async def run_code(req: CodeRequest) -> ExecuteResponse:
+    result = await execute_user_code(req.code)
     return ExecuteResponse(result=result)
