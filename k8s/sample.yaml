@@ -1,0 +1,79 @@
+# =========================================
+# 1) Deployment: sandbox 환경을 위한 설정
+# =========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-code-runner
+  labels:
+    app: python-code-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python-code-runner
+  template:
+    metadata:
+      labels:
+        app: python-code-runner
+    spec:
+      containers:
+      - name: python-code-runner
+        # 예시로 cagojeiger 리포지토리의 latest 이미지를 사용한다고 가정
+        # 실제로는 빌드 후 푸시된 이미지 태그 사용
+        image: cagojeiger/python-code-runner:latest
+        imagePullPolicy: Always
+
+        # API 포트를 열어둠
+        ports:
+        - containerPort: 8000
+
+        # 컨테이너 자체 보안 설정
+        securityContext:
+          runAsUser: 42000              # 42000 UID로 동작하도록 설정
+          runAsGroup: 42000            # 마찬가지로 GID도 42000 사용
+          runAsNonRoot: true           # 반드시 non-root로 동작
+          seccompProfile:
+            type: RuntimeDefault       # 런타임 디폴트 seccomp 프로파일 사용
+          capabilities:
+            drop:
+              - ALL                  # 모든 리눅스 Capabilities 비활성화
+          readOnlyRootFilesystem: true  # 루트 파일시스템을 읽기 전용으로 마운트
+          allowPrivilegeEscalation: false
+
+        # 리소스 사용량 제한
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+            ephemeral-storage: "1Gi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+            ephemeral-storage: "2Gi"
+
+        # 임시 디렉터리 예시 (필요시 실행에 필요한 최소 볼륨만 마운트)
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+
+      # Pod 내부에서 사용할 임시 볼륨 (메모리 기반)
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
+
+# ============================
+# 2) Service: 외부 접근 설정
+# ============================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-code-runner
+spec:
+  selector:
+    app: python-code-runner
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
